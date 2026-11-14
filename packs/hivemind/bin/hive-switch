@@ -40,6 +40,7 @@ BASE_STEPS = {
     "auditor": 10,
     "oracle": 6,
     "spec-architect": 12,
+    "pr-reviewer": 12,
 }
 
 USAGE = """\

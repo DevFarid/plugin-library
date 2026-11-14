@@ -53,6 +53,7 @@ The orchestrator classifies every task first and picks exactly one tier.
 | surgeon | ONLY delicate single-file minimal-diff hotfixes in massive files. |
 | verifier | Build/test runner, log compression. |
 | auditor | Security / edge-case / contract-compliance diff review. |
+| pr-reviewer | Read-only PR review lens worker for /pr-review waves (single lens, JSON report). |
 | oracle | Escalation only after two failed attempts, or as council member when the topology's gate lists it. |
 
 ## 6. ESCALATION
@@ -61,6 +62,7 @@ Same packet fails twice -> orchestrator direct fix of the ~30-line range, or `@o
 ## 7. SLASH COMMANDS (OPENCODE)
 - `/brainstorm <thought dump>`: vault-first check (`vault-gate: <state>`) + tier-verified `@spec-architect` -> `.opencode/SPEC.md` -> offer `/swarm`.
 - `/swarm <task>`: prints a Parallel Wave Plan (Wave 1 Contract, Wave 2 Parallel Builders [1..N], Wave 3 Verify/Audit), fires single-message batches, then runs the post-goal Obsidian checkpoint (`post-goal-checkpoint`).
+- `/pr-review <pr-link>`: ingests the PR, fans out parallel review lenses (+ intent alignment), verifies diff anchors, and offers to post the synthesized review.
 - `/stack`: show/switch stack + topology.
 
 ## 8. OBSIDIAN CONTEXT VAULT & MODEL-TIER INVARIANTS
