@@ -44,6 +44,38 @@ payload verbatim. The labels are always exactly `Yes` and `No`.
 - Vault creation or repair happens **only** after completion. A `/brainstorm`
   that finds no vault proceeds with normal recon and must not scaffold one.
 
+These per-goal records and `plan` semantics belong to the legacy lifecycle CLI.
+They do not suppress the workflow-level per-inference question: `/brainstorm`
+asks create/update/skip after every completed inference, and `/swarm` asks once
+at its single final updater, regardless of an earlier goal record or skip.
+
+## Managed Obsidian framework and backend routing
+
+The managed framework lives at `.hivemind/obsidian` and uses
+`<HIVEMIND_HOME>/bin/obsidian.mjs` (`help`, `status`, `create --confirm`,
+`sync-now`). The compatibility adapter reports any older backend as
+`legacyVault: { path, state, present, detector }`; `present` can be true while
+`state` is `absent`, so never choose create from managed state alone.
+
+| Observed backend | Action | Command |
+| --- | --- | --- |
+| Neither present | create | managed `bin/obsidian.mjs create --confirm --project <project>` |
+| Managed ready only | update | managed `bin/obsidian.mjs sync-now --project <project>` |
+| Legacy healthy/unhealthy only | update | `vault-lifecycle.mjs update --yes --root <project>` |
+| Legacy partial only | repair | `vault-lifecycle.mjs scaffold --yes --root <project>` |
+| Both present or unknown | conflict | no writes; report existing lifecycle remediation |
+
+A partial legacy vault is repaired, never overwritten and never replaced by a
+second `.hivemind` framework. A conflict is never auto-selected or migrated.
+Report managed `createdCount` / `updatedCount` / `unchangedCount`, or legacy
+`created` / `refreshed` / `skipped` plus `index_exit` / `check_exit`, from the
+backend that actually ran. Never invent counts or activity.
+
+The native read-only `obsidian_status` tool is preferred for status when the
+session exposes it and scopes to the session's own project. Offline CLI status
+must state honestly that live session activity is unavailable and must label
+timestamps as display timestamps, not observed activity.
+
 ## Vault-first exploration
 
 Before any `read`, `grep`, `glob`, directory listing, or source inspection, the

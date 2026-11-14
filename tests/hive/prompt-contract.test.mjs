@@ -165,7 +165,7 @@ test('spec-architect emits the vault gate before any exploration instruction', (
   )
 })
 
-test('brainstorm gates before exploration, forbids mid-brainstorm vault creation, wires the checkpoint', () => {
+test('brainstorm gates before exploration, forbids mid-brainstorm creation, and asks the framework question per completed inference', () => {
   const text = readRepoFile(pathFor('brainstorm_command'))
   const gateIndex = validateNoGlobBeforeGate(text, { label: 'brainstorm' })
   validatePreExplorationOrdering(text, { label: 'brainstorm' })
@@ -180,36 +180,48 @@ test('brainstorm gates before exploration, forbids mid-brainstorm vault creation
     /never create a vault mid-brainstorm/i,
     'brainstorm: must explicitly forbid mid-brainstorm vault creation',
   )
-  assert.match(text, /post-goal-checkpoint/, 'brainstorm: must wire the terminal post-goal-checkpoint')
-
-  const launchIndex = text.indexOf('Launch /swarm')
-  assert.notEqual(launchIndex, -1, 'brainstorm: must offer to launch /swarm')
-  const checkpointIndex = text.indexOf('post-goal-checkpoint')
-  assert.ok(
-    checkpointIndex > launchIndex,
-    'brainstorm: the /swarm launch must reference post-goal-checkpoint after it is offered',
+  assert.match(
+    text,
+    /never create or update a framework mid-inference/i,
+    'brainstorm: must forbid creating or updating a framework during inference',
   )
-  const planIndex = text.indexOf('vault-lifecycle.mjs plan')
-  assert.ok(planIndex > launchIndex, 'brainstorm: the /swarm launch must route to vault-lifecycle.mjs plan')
+
+  const completionAnchor = headingIndex(text, /^##[ \t]*2\./m, 'brainstorm')
+  const launchIndex = requireNeedle(text, 'Launch /swarm', 'brainstorm')
+  const questionIndex = requireNeedle(text, '`question` tool', 'brainstorm')
+  assert.ok(
+    questionIndex > completionAnchor,
+    'brainstorm: the framework question must follow the completed inference section',
+  )
+  assert.ok(
+    questionIndex < launchIndex,
+    'brainstorm: the framework question must precede the separate launch-swarm question',
+  )
   assert.ok(gateIndex < launchIndex, 'brainstorm: the gate must precede the /swarm launch offer')
+
+  for (const choice of ['`create`', '`update`', '`skip`']) {
+    requireNeedle(text, choice, 'brainstorm')
+  }
+  assert.match(text, /every completed brainstorm inference/i, 'brainstorm: question must run per completed inference')
+  assert.match(text, /goal-ID `No`\/`none`/, 'brainstorm: old goal answers must not suppress the question')
+  assert.match(text, /never remember it and never carry it forward/i, 'brainstorm: skip is current-run only')
+  assert.equal(
+    /vault-lifecycle\.mjs plan --goal/.test(text),
+    false,
+    'brainstorm: legacy plan gating is superseded by the per-completion question',
+  )
 })
 
-test('swarm runs the post-goal checkpoint strictly after the Wave 3 verification gate', () => {
+test('swarm runs exactly one final updater strictly after the Wave 3 verification gate', () => {
   const text = readRepoFile(pathFor('swarm_command'))
   const gateAnchor = headingIndex(text, /^##[ \t]*4\.[ \t]+After Wave 3/m, 'swarm')
   const terminalAnchor = headingIndex(text, /^##[ \t]*5\./m, 'swarm')
   assert.ok(
     terminalAnchor > gateAnchor,
-    'swarm: the terminal checkpoint section must follow the Wave 3 verification gate section',
+    'swarm: the terminal updater section must follow the Wave 3 verification gate section',
   )
 
   requireNeedle(text, 'post-goal-checkpoint', 'swarm')
-  validateTerminalOrdering(text, {
-    label: 'swarm',
-    anchor: gateAnchor,
-    needle: 'vault-lifecycle.mjs plan',
-    occurrence: 'first',
-  })
   validateTerminalOrdering(text, {
     label: 'swarm',
     anchor: gateAnchor,
@@ -219,11 +231,31 @@ test('swarm runs the post-goal checkpoint strictly after the Wave 3 verification
 
   const terminal = text.slice(terminalAnchor)
   requireNeedle(terminal, 'post-goal-checkpoint', 'swarm terminal section')
-  requireNeedle(terminal, 'vault-lifecycle.mjs plan', 'swarm terminal section')
-  requireNeedle(terminal, 'plan().data.question', 'swarm terminal section')
+  requireNeedle(terminal, 'swarm-agent-updater', 'swarm terminal section')
+  requireNeedle(terminal, 'legacyVault', 'swarm terminal section')
   assert.match(terminal, /`question` tool/i, 'swarm: terminal step must call the question tool')
-  requireNeedle(terminal, '`Yes`', 'swarm terminal section')
-  requireNeedle(terminal, '`No`', 'swarm terminal section')
+  for (const choice of ['`create`', '`update`', '`skip`']) {
+    requireNeedle(terminal, choice, 'swarm terminal section')
+  }
+  requireNeedle(terminal, 'index_exit', 'swarm terminal section')
+  requireNeedle(terminal, 'check_exit', 'swarm terminal section')
+  assert.match(terminal, /Both backends present is a conflict/i, 'swarm: conflict must write nothing')
+  assert.match(terminal, /no later workers/i, 'swarm: the updater must be final')
+  assert.equal(
+    (terminal.match(/`question` tool/g) || []).length,
+    1,
+    'swarm: duplicate completion question prompts regressed',
+  )
+  assert.equal(
+    /vault-lifecycle\.mjs plan --goal/.test(text),
+    false,
+    'swarm: legacy plan checkpoint is superseded',
+  )
+  assert.equal(
+    /plan\(\)\.data\.question/.test(text),
+    false,
+    'swarm: legacy plan payload must not drive the updater',
+  )
 })
 
 test('root AGENTS.md carries the vault-first, checkpoint, and architect-tier invariants', () => {

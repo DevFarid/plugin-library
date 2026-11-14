@@ -46,9 +46,43 @@ edited by the installer.
 1. `/brainstorm <thought dump>` — checks the model-tier invariant and runs the
    vault gate before exploring files. It emits `vault-gate: <state>` and, when a
    vault exists, feeds L0/L1 vault context to `@spec-architect`.
-2. Review `.opencode/SPEC.md`, then launch `/swarm`.
-3. After the verification gate passes, the terminal checkpoint may ask one
-   `Yes` / `No` question.
+2. After that inference completes, the actual `question` tool asks once for that
+   run: create when both backends are absent, update when a managed or legacy
+   framework exists, or skip for this run only. The question repeats on every
+   brainstorm run; old goal records and earlier skips cannot suppress it.
+3. Review `.opencode/SPEC.md`, then separately answer the launch `/swarm`
+   question. A framework create, update, or skip is not launch consent.
+4. After the swarm verification gate passes, one final `swarm-agent-updater`
+   asks and applies the same create/update/skip choice. There is no second legacy
+   checkpoint prompt.
+
+## Managed framework and legacy routing
+
+The managed framework is `.hivemind/obsidian`, operated by
+`<HIVEMIND_HOME>/bin/obsidian.mjs` (`help`, `status`, `create --confirm`,
+`sync-now`). The compatibility snapshot reports `legacyVault` with `path`,
+`state`, `present`, and `detector`; use it instead of managed state alone.
+
+```bash
+# managed status / create / update
+node ~/.config/hivemind/bin/obsidian.mjs status --json --project <project>
+node ~/.config/hivemind/bin/obsidian.mjs create --confirm --project <project>
+node ~/.config/hivemind/bin/obsidian.mjs sync-now --project <project>
+
+# legacy update / partial repair (existing lifecycle, unchanged)
+node ~/.config/hivemind/scripts/hive/vault-lifecycle.mjs update --yes --root <project>
+node ~/.config/hivemind/scripts/hive/vault-lifecycle.mjs scaffold --yes --root <project>
+```
+
+- Legacy healthy/unhealthy: update through the legacy lifecycle.
+- Legacy partial: repair with explicit consent through the existing `scaffold`.
+- Both backends present: conflict, no writes, never auto-select or migrate.
+- Report managed counts or legacy `created` / `refreshed` / `skipped` and
+  `index_exit` / `check_exit` only when actually observed.
+
+The native read-only `obsidian_status` tool is preferred when available; an
+offline CLI fallback must state honestly that live session activity is
+unavailable.
 
 ## Consent prompts
 
