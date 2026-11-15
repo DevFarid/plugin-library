@@ -19,9 +19,13 @@
     %USERPROFILE%\.config\hivemind\scripts\hive\*.mjs
     %USERPROFILE%\.config\hivemind\config\model-tiers.json
     %USERPROFILE%\.config\hivemind\vault-kit\
+    %USERPROFILE%\.config\hivemind\obsidian\*.mjs (managed framework engine)
+    %USERPROFILE%\.config\hivemind\bin\obsidian.mjs (CLI)
     %USERPROFILE%\.config\opencode\AGENTS.md, agents\, commands\, skills\
-    %USERPROFILE%\.config\opencode\skills\token-discipline\ and skills\pr-review\ (incl. lenses\)
+    %USERPROFILE%\.config\opencode\skills\token-discipline\, skills\pr-review\ (incl. lenses\)
+    %USERPROFILE%\.config\opencode\skills\hivemind-obsidian\SKILL.md
     %USERPROFILE%\.config\opencode\skills\pr-review\engine\ (bin\, src\, package.json, README.md)
+    %USERPROFILE%\.config\opencode\plugins\hivemind-obsidian.js (native status tool)
     %USERPROFILE%\.config\opencode\commands\stack.md + commands\stack\*.md
     %USERPROFILE%\.local\bin\hive-switch.cmd + hive-switch.ps1 (forwarder)
 
@@ -40,12 +44,17 @@
         # refresh ONLY the PR-review command, agent, skill, lenses, and engine;
         # then apply narrow harness registration; leaves profiles, AGENTS.md,
         # other commands/agents, and unrelated PATH entries untouched
+    powershell -ExecutionPolicy Bypass -File install.ps1 -SkipRegistration -SkipPathUpdate
+        # isolated/test installs: do not run local harness registration and do
+        # not change the User PATH (no network is ever used)
 #>
 [CmdletBinding()]
 param(
   [string]$Activate = '',
   [switch]$Force,
-  [switch]$ReinstallPRReview
+  [switch]$ReinstallPRReview,
+  [switch]$SkipRegistration,
+  [switch]$SkipPathUpdate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,8 +62,8 @@ $ErrorActionPreference = 'Stop'
 $Root    = Split-Path -Parent $PSCommandPath
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $Root)
 $HomeDir = $env:USERPROFILE
-$HmHome  = Join-Path $HomeDir '.config\hivemind'
-$OcDir   = Join-Path $HomeDir '.config\opencode'
+$HmHome  = if (-not [string]::IsNullOrWhiteSpace($env:HIVEMIND_HOME)) { $env:HIVEMIND_HOME } else { Join-Path $HomeDir '.config\hivemind' }
+$OcDir   = if (-not [string]::IsNullOrWhiteSpace($env:OPENCODE_DIR)) { $env:OPENCODE_DIR } else { Join-Path $HomeDir '.config\opencode' }
 $BinDir  = Join-Path $HomeDir '.local\bin'
 $stamp   = Get-Date -Format 'yyyyMMdd_HHmmss'
 
@@ -138,11 +147,15 @@ function Ensure-NodeShim {
   Backup-IfExists $shimDst
   Copy-Item $shimSrc $shimDst -Force
   Ok "node.cmd shim -> $shimDst (portable runtime)"
-  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-  if ($userPath -notlike "*$BinDir*") {
-    $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $BinDir } else { "$userPath;$BinDir" }
-    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-    Warn "$BinDir added to User PATH so the node.cmd shim resolves (new terminals)"
+  if ($SkipPathUpdate) {
+    Ok "node.cmd shim installed; User PATH unchanged (-SkipPathUpdate)"
+  } else {
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($userPath -notlike "*$BinDir*") {
+      $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $BinDir } else { "$userPath;$BinDir" }
+      [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+      Warn "$BinDir added to User PATH so the node.cmd shim resolves (new terminals)"
+    }
   }
   return $true
 }
@@ -203,9 +216,13 @@ if ($ReinstallPRReview) {
   Say "Focused reinstall -> PR-review assets only"
   Install-PRReviewAssets -Overwrite
   Say ""
-  Say "Node + harness registration"
-  Ensure-NodeShim | Out-Null
-  Invoke-HarnessRegistration
+  if ($SkipRegistration) {
+    Say "Harness registration skipped (-SkipRegistration)."
+  } else {
+    Say "Node + harness registration"
+    Ensure-NodeShim | Out-Null
+    Invoke-HarnessRegistration
+  }
   Say ""
   Say "Done. Profiles, AGENTS.md, other commands/agents, and unrelated PATH entries were not touched."
   Say "OpenCode watches the config directory; use /reload if refreshed PR-review assets are not visible."
@@ -245,6 +262,21 @@ if (Test-Path $ModelTiersSrc) {
 }
 
 Say ""
+Say "Obsidian engine -> $HmHome\obsidian + $HmHome\bin"
+$ObsidianSrc = Join-Path $Root 'obsidian'
+if (Test-Path $ObsidianSrc) {
+  New-Item -ItemType Directory -Path (Join-Path $HmHome 'obsidian') -Force | Out-Null
+  New-Item -ItemType Directory -Path (Join-Path $HmHome 'bin') -Force | Out-Null
+  Get-ChildItem (Join-Path $ObsidianSrc '*.mjs') | ForEach-Object {
+    Install-File $_.FullName (Join-Path (Join-Path $HmHome 'obsidian') $_.Name)
+  }
+  Ok 'obsidian\*.mjs'
+  Install-File (Join-Path $Root 'bin\obsidian.mjs') (Join-Path (Join-Path $HmHome 'bin') 'obsidian.mjs')
+} else {
+  Warn "missing $ObsidianSrc; /obsidian will fail until the engine is installed"
+}
+
+Say ""
 Say "OpenCode config -> $OcDir"
 Install-File (Join-Path $Root 'opencode\AGENTS.md') (Join-Path $OcDir 'AGENTS.md') -KeepExisting
 Get-ChildItem (Join-Path $Root 'opencode\agents\*.md') | ForEach-Object {
@@ -256,9 +288,10 @@ Get-ChildItem (Join-Path $Root 'opencode\commands\*.md') | ForEach-Object {
 Get-ChildItem (Join-Path $Root 'opencode\commands\stack\*.md') | ForEach-Object {
   Install-File $_.FullName (Join-Path (Join-Path $OcDir 'commands\stack') $_.Name) -KeepExisting
 }
-foreach ($skill in 'token-discipline', 'pr-review') {
+foreach ($skill in 'token-discipline', 'pr-review', 'hivemind-obsidian') {
   $srcSkill = Join-Path $Root (Join-Path 'opencode\skills' $skill)
   $dstSkill = Join-Path $OcDir (Join-Path 'skills' $skill)
+  New-Item -ItemType Directory -Path $dstSkill -Force | Out-Null
   Install-File (Join-Path $srcSkill 'SKILL.md') (Join-Path $dstSkill 'SKILL.md') -KeepExisting
   $srcLenses = Join-Path $srcSkill 'lenses'
   if (Test-Path $srcLenses) {
@@ -268,12 +301,23 @@ foreach ($skill in 'token-discipline', 'pr-review') {
     }
   }
 }
+$pluginSrc = Join-Path $Root 'opencode\hivemind-obsidian.mjs'
+if (Test-Path $pluginSrc) {
+  New-Item -ItemType Directory -Path (Join-Path $OcDir 'plugins') -Force | Out-Null
+  Install-File $pluginSrc (Join-Path $OcDir 'plugins\hivemind-obsidian.js') -KeepExisting
+} else {
+  Warn "missing $pluginSrc; the native obsidian_status tool will be unavailable"
+}
 Install-PRReviewEngine -KeepExisting
 
 Say ""
-Say "Harness registration"
-Ensure-NodeShim | Out-Null
-Invoke-HarnessRegistration
+if ($SkipRegistration) {
+  Say "Harness registration skipped (-SkipRegistration)."
+} else {
+  Say "Harness registration"
+  Ensure-NodeShim | Out-Null
+  Invoke-HarnessRegistration
+}
 
 Say ""
 Say "Switcher -> $HmHome + $BinDir"
@@ -300,12 +344,16 @@ Say ""
 Say "Commands -> $OcDir\commands"
 Ok "$rendered command file(s) wired to $ps1Path"
 
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if ($userPath -notlike "*$BinDir*") {
-  $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $BinDir } else { "$userPath;$BinDir" }
-  [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-  Warn "$BinDir added to User PATH (applies to new terminals)"
-} else { Ok "$BinDir already on PATH" }
+if ($SkipPathUpdate) {
+  Ok "User PATH unchanged (-SkipPathUpdate)"
+} else {
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  if ($userPath -notlike "*$BinDir*") {
+    $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $BinDir } else { "$userPath;$BinDir" }
+    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+    Warn "$BinDir added to User PATH (applies to new terminals)"
+  } else { Ok "$BinDir already on PATH" }
+}
 
 Say ""
 if ($Activate) {

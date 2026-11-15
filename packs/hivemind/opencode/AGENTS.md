@@ -54,14 +54,15 @@ The orchestrator classifies every task first and picks exactly one tier.
 | verifier | Build/test runner, log compression. |
 | auditor | Security / edge-case / contract-compliance diff review. |
 | pr-reviewer | Read-only PR review lens worker for /pr-review waves (single lens, JSON report). |
+| swarm-agent-updater | Final completion updater; applies one explicit create/update/skip choice, never launches later workers. |
 | oracle | Escalation only after two failed attempts, or as council member when the topology's gate lists it. |
 
 ## 6. ESCALATION
 Same packet fails twice -> orchestrator direct fix of the ~30-line range, or `@oracle` with a compressed `<problem_capsule>`.
 
 ## 7. SLASH COMMANDS (OPENCODE)
-- `/brainstorm <thought dump>`: vault-first check (`vault-gate: <state>`) + tier-verified `@spec-architect` -> `.opencode/SPEC.md` -> offer `/swarm`.
-- `/swarm <task>`: prints a Parallel Wave Plan (Wave 1 Contract, Wave 2 Parallel Builders [1..N], Wave 3 Verify/Audit), fires single-message batches, then runs the post-goal Obsidian checkpoint (`post-goal-checkpoint`).
+- `/brainstorm <thought dump>`: vault-first check (`vault-gate: <state>`) + tier-verified `@spec-architect` -> `.opencode/SPEC.md` -> per-completion create/update/skip question -> separately offer `/swarm`.
+- `/swarm <task>`: prints a Parallel Wave Plan (Wave 1 Contract, Wave 2 Parallel Builders [1..N], Wave 3 Verify/Audit), fires single-message batches, then runs exactly one final Obsidian updater (`post-goal-checkpoint`).
 - `/pr-review <pr-link>`: ingests the PR, fans out parallel review lenses (+ intent alignment), verifies diff anchors, and offers to post the synthesized review.
 - `/stack`: show/switch stack + topology.
 
@@ -69,9 +70,12 @@ Same packet fails twice -> orchestrator direct fix of the ~30-line range, or `@o
 1. **Vault-First Before Exploration**:
    - Every `/brainstorm` and `@spec-architect` run checks `.opencode/vault/00-MOC.md` + `scripts/vault.mjs` (`vault-lifecycle.mjs detect --json`) and emits `vault-gate: <state>` BEFORE exploring repository files.
    - When a vault is present, run `index` -> `check --strict`, read `.opencode/vault/00-MOC.md` (`[[moc-root]]`), and use `brief` / `find` / `slice` instead of broad `glob **/*` scans.
-2. **Post-Goal Checkpoint & Refresh (`question` Tool)**:
-   - After any Hivemind goal completes with a clean verification gate, run `vault-lifecycle.mjs plan --goal <goal_id> --json` once.
-   - When `absent`/`partial`, ask via `question` (`Yes` / `No`) whether to checkpoint the project into an Obsidian Context Vault (`scaffold --yes` + `check --strict`).
-   - When `present_*`, ask via `question` (`Yes` / `No`) whether to update the Obsidian Context Vault with latest changes (`update` + `check --strict`). On `No`, write nothing.
-3. **Smarter Architect Tier Law**:
+2. **Per-Completion Framework Question (`question` Tool)**:
+   - After EVERY completed `/brainstorm` inference, and after every verified swarm, ask the actual `question` tool once for that run: `create` when both backends are absent, `update` when a managed or legacy framework exists, `skip` for the current run only. A prior skip, old goal-ID record, or `.hive/lifecycle` answer never suppresses a new run's question.
+   - Never create or update a framework mid-inference. `/swarm` has exactly one final `post-goal-checkpoint` updater; do not add a duplicate legacy plan prompt.
+3. **Backend Routing and Truthful Reporting**:
+   - Use the compatibility `legacyVault` metadata (`path`, `state`, `present`, `detector`), not managed state alone, to choose update vs create: a legacy-only project can report managed `state: absent`.
+   - New framework actions use `<HIVEMIND_HOME>/bin/obsidian.mjs` (`create --confirm` / `sync-now`). Existing legacy vaults route updates through `vault-lifecycle.mjs update --yes`; a partial legacy vault is repaired with explicitly consented `scaffold --yes`, never replaced by a second `.hivemind` framework.
+   - Both backends present is a conflict: write nothing, never auto-select or migrate. Report counts and exit codes from the backend that actually ran; never invent results. The updater is final and launches no later workers; if its agent is absent, run the skill inline.
+4. **Smarter Architect Tier Law**:
    - Across every stack/profile and `/brainstorm` spawn, `tier(spec-architect) >= tier(builder) + 1` (`model-tier.mjs verify --strict`). Never spawn `@spec-architect` on a worker-tier model.

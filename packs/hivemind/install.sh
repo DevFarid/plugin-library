@@ -19,9 +19,13 @@
 #   ~/.config/hivemind/scripts/hive/*.mjs
 #   ~/.config/hivemind/config/model-tiers.json
 #   ~/.config/hivemind/vault-kit/
+#   ~/.config/hivemind/obsidian/*.mjs (managed framework engine)
+#   ~/.config/hivemind/bin/obsidian.mjs (CLI)
 #   ~/.config/opencode/{AGENTS.md,agents/,commands/,skills/}
-#   ~/.config/opencode/skills/token-discipline/ and skills/pr-review/ (incl. lenses/)
+#   ~/.config/opencode/skills/token-discipline/, skills/pr-review/ (incl. lenses/)
+#   ~/.config/opencode/skills/hivemind-obsidian/SKILL.md
 #   ~/.config/opencode/skills/pr-review/engine/ (bin/, src/, package.json, README.md)
+#   ~/.config/opencode/plugins/hivemind-obsidian.js (native status tool)
 #   ~/.config/opencode/commands/stack.md + commands/stack/*.md
 #   ~/.local/bin/hive-switch
 #
@@ -35,25 +39,28 @@
 #   bash install.sh -a chatgpt-deepseek     # also activate a stack
 #   bash install.sh -r                      # refresh ONLY PR-review assets (command, agent, skill, lenses, engine)
 #                                           # then apply narrow harness registration
+#   bash install.sh -s                      # skip local harness registration (tests/isolated homes)
 #   FORCE=1 bash install.sh                 # overwrite existing prompt files
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-HM_HOME="$HOME/.config/hivemind"
-OC_DIR="$HOME/.config/opencode"
+HM_HOME="${HIVEMIND_HOME:-$HOME/.config/hivemind}"
+OC_DIR="${OPENCODE_DIR:-$HOME/.config/opencode}"
 BIN_DIR="$HOME/.local/bin"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 FORCE="${FORCE:-0}"
 ACTIVATE=""
 PR_REVIEW_ONLY=0
+SKIP_REGISTRATION="${SKIP_REGISTRATION:-0}"
 
-while getopts "a:hr" opt; do
+while getopts "a:hrs" opt; do
   case "$opt" in
     a) ACTIVATE="$OPTARG" ;;
     r) PR_REVIEW_ONLY=1 ;;
-    h) sed -n '2,35p' "$0"; exit 0 ;;
+    s) SKIP_REGISTRATION=1 ;;
+    h) sed -n '2,40p' "$0"; exit 0 ;;
     *) echo "unknown option" >&2; exit 2 ;;
   esac
 done
@@ -103,6 +110,10 @@ install_pr_review_engine() { # keep_existing
 
 # Durable local wiring. Uses the Node already on PATH; never downloads a runtime.
 register_harness() {
+  if [ "$SKIP_REGISTRATION" = "1" ]; then
+    warn "harness registration skipped (-s)"
+    return 0
+  fi
   local helper="$OC_DIR/skills/pr-review/engine/src/harness-registration.mjs"
   if [ ! -f "$helper" ]; then
     warn "harness-registration helper not installed: $helper"
@@ -196,6 +207,22 @@ else
 fi
 
 echo
+echo "Obsidian engine -> $HM_HOME/obsidian + $HM_HOME/bin"
+OBSIDIAN_SRC="$ROOT/obsidian"
+if [ -d "$OBSIDIAN_SRC" ]; then
+  mkdir -p "$HM_HOME/obsidian" "$HM_HOME/bin"
+  for f in "$OBSIDIAN_SRC"/*.mjs; do
+    [ -f "$f" ] || continue
+    install_file "$f" "$HM_HOME/obsidian/$(basename "$f")" 0
+  done
+  ok "obsidian/*.mjs"
+  install_file "$ROOT/bin/obsidian.mjs" "$HM_HOME/bin/obsidian.mjs" 0
+  chmod +x "$HM_HOME/bin/obsidian.mjs" 2>/dev/null || true
+else
+  warn "missing $OBSIDIAN_SRC; /obsidian will fail until the engine is installed"
+fi
+
+echo
 echo "OpenCode config -> $OC_DIR"
 install_file "$ROOT/opencode/AGENTS.md" "$OC_DIR/AGENTS.md" 1
 for f in "$ROOT"/opencode/agents/*.md; do
@@ -207,13 +234,20 @@ done
 for f in "$ROOT"/opencode/commands/stack/*.md; do
   install_file "$f" "$OC_DIR/commands/stack/$(basename "$f")" 1
 done
-for skill in token-discipline pr-review; do
+for skill in token-discipline pr-review hivemind-obsidian; do
+  mkdir -p "$OC_DIR/skills/$skill"
   install_file "$ROOT/opencode/skills/$skill/SKILL.md" "$OC_DIR/skills/$skill/SKILL.md" 1
 done
 if [ -d "$ROOT/opencode/skills/pr-review/lenses" ]; then
   for f in "$ROOT"/opencode/skills/pr-review/lenses/*.md; do
     install_file "$f" "$OC_DIR/skills/pr-review/lenses/$(basename "$f")" 1
   done
+fi
+if [ -f "$ROOT/opencode/hivemind-obsidian.mjs" ]; then
+  mkdir -p "$OC_DIR/plugins"
+  install_file "$ROOT/opencode/hivemind-obsidian.mjs" "$OC_DIR/plugins/hivemind-obsidian.js" 1
+else
+  warn "missing $ROOT/opencode/hivemind-obsidian.mjs; the native obsidian_status tool will be unavailable"
 fi
 install_pr_review_engine 1
 

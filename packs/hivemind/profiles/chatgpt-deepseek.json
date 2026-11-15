@@ -22,6 +22,7 @@
     "auditor": "openai/gpt-6.1-sol",
     "oracle": "openai/gpt-6-astra",
     "builder": "opencode/deepseek-v4.1-flash",
+    "swarm-agent-updater": "opencode/deepseek-v4.1-flash",
     "researcher": "opencode/deepseek-v4.1-flash",
     "spec-architect": "openai/gpt-6.1-sol",
     "pr-reviewer": "opencode/deepseek-v4.1-flash"

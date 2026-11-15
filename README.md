@@ -29,17 +29,36 @@ a host.
 stacking the right sidebar's two panes vertically; it is not an installable
 package.
 
-## Hivemind context vault
+## Hivemind context vault and Obsidian workflow
 
-Hivemind can checkpoint a finished project into an optional Obsidian-compatible
-context vault: pointer notes under `.opencode/vault/` plus a zero-dependency
-`scripts/vault.mjs` CLI. After a goal passes verification, `/swarm` asks once
-with exact `Yes` / `No` options whether to create a vault (`absent` / `partial`)
-or refresh one (`present_*`); `No`, and CI, write nothing. `/brainstorm` and
-`@spec-architect` always check the vault before exploring project files and emit
-`vault-gate: <state>`. Every stack keeps `spec-architect` at least one model tier
-above `builder`. See [`docs/context-vault/GUIDE.md`](docs/context-vault/GUIDE.md)
-for consent, install/upgrade, and health semantics, and
+Hivemind supports two project-local Obsidian backends. The newer managed
+framework lives at `.hivemind/obsidian` and is operated by
+`<HIVEMIND_HOME>/bin/obsidian.mjs` (`help`, `status`, `create --confirm`,
+`sync-now`). The older Obsidian-compatible context vault lives at
+`.opencode/vault/` with a zero-dependency `scripts/vault.mjs` CLI and keeps its
+existing lifecycle commands unchanged.
+
+After every completed `/brainstorm` inference and after a verified `/swarm`, the
+orchestrator asks the actual `question` tool once for that run: create when both
+backends are absent, update when a managed or legacy framework exists, or skip
+for this run only. A previous skip, old goal record, or `.hive/lifecycle` answer
+never suppresses a new run's question, and no framework is created
+mid-inference. `/swarm` ends with exactly one final `swarm-agent-updater` step
+and no duplicate legacy checkpoint prompt.
+
+Routing uses the compatibility `legacyVault` metadata (`path`, `state`,
+`present`, `detector`), not managed state alone. New managed actions use
+`bin/obsidian.mjs`; legacy healthy/unhealthy vaults update through
+`vault-lifecycle.mjs update --yes`; a partial legacy vault is repaired with
+explicit consent via `scaffold --yes`; both backends present is a reported
+conflict with no writes. Counts and exit codes come from the backend that
+actually ran. `/brainstorm` and `@spec-architect` always check the vault before
+exploring project files and emit `vault-gate: <state>`, and every stack keeps
+`spec-architect` at least one model tier above `builder`. The native read-only
+`obsidian_status` tool is preferred when available; an offline CLI fallback
+states honestly that live session activity is unavailable. See
+[`docs/context-vault/GUIDE.md`](docs/context-vault/GUIDE.md) for consent,
+install/upgrade, and health semantics, and
 [`docs/context-vault/USAGE.md`](docs/context-vault/USAGE.md) for recipes.
 
 ## The boards
