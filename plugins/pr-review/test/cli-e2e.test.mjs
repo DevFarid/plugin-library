@@ -389,13 +389,14 @@ test('CLI publish run-dir rejects a payload head_sha that differs from packet.js
   }
 })
 
-test('Hivemind pack wiring is consistent across commands, agents, skills, switchers, and all 5 profiles', () => {
+test('Hivemind pack wiring is consistent across commands, agents, skills, switchers, and every committed profile', () => {
   const packRoot = join(REPO_ROOT, 'packs', 'hivemind')
   const cmdText = readFileSync(join(packRoot, 'opencode', 'commands', 'pr-review.md'), 'utf8')
   const agentText = readFileSync(join(packRoot, 'opencode', 'agents', 'pr-reviewer.md'), 'utf8')
   const skillText = readFileSync(join(packRoot, 'opencode', 'skills', 'pr-review', 'SKILL.md'), 'utf8')
   const switchPs1 = readFileSync(join(packRoot, 'hive-switch.ps1'), 'utf8')
   const switchSh = readFileSync(join(packRoot, 'bin', 'hive-switch'), 'utf8')
+  const switchCjs = readFileSync(join(packRoot, 'bin', 'hive-switch.cjs'), 'utf8')
 
   assert.match(cmdText, /^---\r?\n[\s\S]*agent:\s*hivemind-architect[\s\S]*---/)
   assert.match(agentText, /^---\r?\n[\s\S]*mode:\s*subagent[\s\S]*permissions:[\s\S]*action:\s*["']?\*["']?[\s\S]*resource:\s*["']?\*["']?[\s\S]*effect:\s*deny[\s\S]*---/)
@@ -403,14 +404,32 @@ test('Hivemind pack wiring is consistent across commands, agents, skills, switch
   assert.match(skillText, /^---\r?\n[\s\S]*name:\s*pr-review[\s\S]*---/)
   assert.ok(switchPs1.includes('"pr-reviewer"'))
   assert.ok(switchSh.includes('"pr-reviewer"'))
+  assert.ok(switchCjs.includes("'pr-reviewer'") || switchCjs.includes('"pr-reviewer"'))
 
   const profilesDir = join(packRoot, 'profiles')
   const profileFiles = readdirSync(profilesDir).filter((f) => f.endsWith('.json'))
-  assert.equal(profileFiles.length, 5)
+  // The committed roster grows as stacks are added, so validate wiring for
+  // every profile present instead of pinning an exact count.
+  assert.ok(profileFiles.length >= 5, `expected at least 5 committed profiles, found ${profileFiles.length}`)
   for (const file of profileFiles) {
     const data = JSON.parse(readFileSync(join(profilesDir, file), 'utf8'))
-    assert.ok(typeof data.agent_models['pr-reviewer'] === 'string' && data.agent_models['pr-reviewer'].includes('/'))
+    assert.ok(
+      typeof data.agent_models['pr-reviewer'] === 'string' && data.agent_models['pr-reviewer'].includes('/'),
+      `${file} must route pr-reviewer to a provider/model ID`
+    )
   }
+
+  const swarmAgents = JSON.parse(readFileSync(join(packRoot, 'opencode', 'swarm-agents.json'), 'utf8'))
+  const architectPermissions = swarmAgents.agents['hivemind-architect'].permissions
+  assert.ok(
+    architectPermissions.some((p) => p.action === 'subagent' && p.resource === 'pr-reviewer' && p.effect === 'allow'),
+    'hivemind-architect must be allowed to spawn pr-reviewer'
+  )
+  const reviewerPermissions = swarmAgents.agents['pr-reviewer'].permissions
+  assert.ok(
+    reviewerPermissions.some((p) => p.action === '*' && p.resource === '*' && p.effect === 'deny'),
+    'pr-reviewer must default-deny every action'
+  )
 })
 
 test('Security regression guards: monotonic intent pessimism, finding path canonicalization, and safe tree pruning', async () => {

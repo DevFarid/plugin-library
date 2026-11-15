@@ -21,6 +21,11 @@
     %USERPROFILE%\.config\hivemind\vault-kit\
     %USERPROFILE%\.config\hivemind\obsidian\*.mjs (managed framework engine)
     %USERPROFILE%\.config\hivemind\bin\obsidian.mjs (CLI)
+    %USERPROFILE%\.config\hivemind\bin\hive-switch.cjs (shared switcher backend)
+    %USERPROFILE%\.config\hivemind\opencode\swarm-agents.json
+    %USERPROFILE%\.config\hivemind\opencode\hivemind-wave-limit.mjs
+    %USERPROFILE%\.config\hivemind\skills\hivemind-obsidian\SKILL.md
+    %USERPROFILE%\.config\hivemind\skills\pr-review\ (SKILL.md, lenses\, engine\)
     %USERPROFILE%\.config\opencode\AGENTS.md, agents\, commands\, skills\
     %USERPROFILE%\.config\opencode\skills\token-discipline\, skills\pr-review\ (incl. lenses\)
     %USERPROFILE%\.config\opencode\skills\hivemind-obsidian\SKILL.md
@@ -93,14 +98,71 @@ function Install-DirFiles([string]$SourceDir, [string]$DestDir, [switch]$KeepExi
 
 # The engine lives with the installed skill so the command never depends on a
 # repository checkout: ~/.config/opencode/skills/pr-review/engine/{bin,src}.
-function Install-PRReviewEngine([switch]$KeepExisting) {
+function Install-PRReviewEngine([string]$SkillDir = '', [switch]$KeepExisting) {
   $engineSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $Root)) 'plugins\pr-review'
   if (-not (Test-Path $engineSrc)) { Warn "pr-review engine source not found: $engineSrc"; return }
-  $engineDst = Join-Path $OcDir 'skills\pr-review\engine'
+  $targetSkill = if ([string]::IsNullOrWhiteSpace($SkillDir)) { Join-Path $OcDir 'skills\pr-review' } else { $SkillDir }
+  $engineDst = Join-Path $targetSkill 'engine'
   Install-DirFiles (Join-Path $engineSrc 'bin') (Join-Path $engineDst 'bin') -KeepExisting:$KeepExisting
   Install-DirFiles (Join-Path $engineSrc 'src') (Join-Path $engineDst 'src') -KeepExisting:$KeepExisting
   Install-File (Join-Path $engineSrc 'package.json') (Join-Path $engineDst 'package.json') -KeepExisting:$KeepExisting
   Install-File (Join-Path $engineSrc 'README.md') (Join-Path $engineDst 'README.md') -KeepExisting:$KeepExisting
+}
+
+# Canonical switcher backend + templates live under HIVEMIND_HOME so
+# hive-switch.cjs can restore missing agents/plugins/skills without a checkout.
+function Install-HiveSwitchTemplates {
+  $switchSrc = Join-Path $Root 'bin\hive-switch.cjs'
+  if (Test-Path $switchSrc) {
+    New-Item -ItemType Directory -Path (Join-Path $HmHome 'bin') -Force | Out-Null
+    Install-File $switchSrc (Join-Path $HmHome 'bin\hive-switch.cjs')
+  } else {
+    Warn "missing $switchSrc; hive-switch will fail until the backend is installed"
+  }
+  $swarmSrc = Join-Path $Root 'opencode\swarm-agents.json'
+  if (Test-Path $swarmSrc) {
+    New-Item -ItemType Directory -Path (Join-Path $HmHome 'opencode') -Force | Out-Null
+    Install-File $swarmSrc (Join-Path $HmHome 'opencode\swarm-agents.json')
+  } else {
+    Warn "missing $swarmSrc; the switcher will fall back to built-in agent templates"
+  }
+  $waveSrc = Join-Path $Root 'opencode\hivemind-wave-limit.mjs'
+  if (Test-Path $waveSrc) {
+    New-Item -ItemType Directory -Path (Join-Path $HmHome 'opencode') -Force | Out-Null
+    Install-File $waveSrc (Join-Path $HmHome 'opencode\hivemind-wave-limit.mjs')
+  } else {
+    Warn "missing $waveSrc; wave limits will rely on the live plugin only"
+  }
+}
+
+function Install-StagedObsidianSkill {
+  $skillSrc = Join-Path $Root 'opencode\skills\hivemind-obsidian\SKILL.md'
+  if (-not (Test-Path $skillSrc)) {
+    Warn "missing $skillSrc; the switcher cannot restore the hivemind-obsidian skill"
+    return
+  }
+  $skillDst = Join-Path $HmHome 'skills\hivemind-obsidian'
+  New-Item -ItemType Directory -Path $skillDst -Force | Out-Null
+  Install-File $skillSrc (Join-Path $skillDst 'SKILL.md')
+}
+
+function Install-StagedPRReviewSkill {
+  $skillSrc = Join-Path $Root 'opencode\skills\pr-review'
+  if (-not (Test-Path $skillSrc)) {
+    Warn "missing $skillSrc; the switcher cannot restore the pr-review skill"
+    return
+  }
+  $skillDst = Join-Path $HmHome 'skills\pr-review'
+  New-Item -ItemType Directory -Path $skillDst -Force | Out-Null
+  Install-File (Join-Path $skillSrc 'SKILL.md') (Join-Path $skillDst 'SKILL.md')
+  $srcLenses = Join-Path $skillSrc 'lenses'
+  if (Test-Path $srcLenses) {
+    New-Item -ItemType Directory -Path (Join-Path $skillDst 'lenses') -Force | Out-Null
+    Get-ChildItem (Join-Path $srcLenses '*.md') | ForEach-Object {
+      Install-File $_.FullName (Join-Path (Join-Path $skillDst 'lenses') $_.Name)
+    }
+  }
+  Install-PRReviewEngine $skillDst
 }
 
 function Test-NodeExecutable([string]$Path) {
@@ -215,6 +277,9 @@ if ($ReinstallPRReview) {
   Say ""
   Say "Focused reinstall -> PR-review assets only"
   Install-PRReviewAssets -Overwrite
+  # Refresh only the staged pr-review skill/engine; obsidian and unrelated
+  # skill assets stay exactly as they are.
+  if (Test-Path $HmHome) { Install-StagedPRReviewSkill }
   Say ""
   if ($SkipRegistration) {
     Say "Harness registration skipped (-SkipRegistration)."
@@ -324,6 +389,12 @@ Say "Switcher -> $HmHome + $BinDir"
 Install-File (Join-Path $Root 'hive-switch.ps1') (Join-Path $HmHome 'hive-switch.ps1')
 Install-File (Join-Path $Root 'bin\hive-switch.ps1') (Join-Path $BinDir 'hive-switch.ps1')
 Install-File (Join-Path $Root 'bin\hive-switch.cmd') (Join-Path $BinDir 'hive-switch.cmd')
+
+Say ""
+Say "Switcher backend + staged templates -> $HmHome"
+Install-HiveSwitchTemplates
+Install-StagedObsidianSkill
+Install-StagedPRReviewSkill
 
 # --- point the /stack commands at this machine's switcher ---------------
 # Invoke powershell explicitly: a bare "quoted\path.cmd" argument is a PARSE

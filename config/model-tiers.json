@@ -36,8 +36,8 @@
     },
     "google/gemini-4-carbon": {
       "tier": 4,
-      "roles": ["hivemind-architect"],
-      "notes": "Frontier macro-context lead variant tuned for long-horizon orchestration and wide fan-out planning."
+      "roles": ["hivemind-architect", "spec-architect", "auditor"],
+      "notes": "Frontier macro-context lead variant tuned for long-horizon orchestration, spec compilation, and contract review."
     },
     "openai/gpt-5.1-codex-max": {
       "tier": 4,
@@ -69,6 +69,11 @@
       "roles": ["builder", "surgeon", "researcher"],
       "notes": "Same reasoning-escalated DeepSeek tier routed through the OpenCode Go subscription; identical capability class."
     },
+    "opencode-go/deepseek-v4-pro": {
+      "tier": 3,
+      "roles": ["builder", "surgeon", "researcher"],
+      "notes": "OpenCode V2 provider ID for reasoning-escalated DeepSeek V4 Pro via OpenCode Go."
+    },
     "openai/gpt-5.1-codex": {
       "tier": 3,
       "roles": ["builder", "surgeon"],
@@ -94,6 +99,11 @@
       "roles": ["builder", "scout", "surgeon", "verifier", "researcher"],
       "notes": "High-throughput cheap worker used for scouts, verifiers, and most parallel builder slices; never an architect or oracle."
     },
+    "opencode-go/deepseek-v4.1-flash": {
+      "tier": 1,
+      "roles": ["builder", "scout", "surgeon", "verifier", "researcher"],
+      "notes": "OpenCode V2 provider ID for high-throughput DeepSeek V4.1 Flash worker slices via OpenCode Go."
+    },
     "deepseek/deepseek-flash": {
       "tier": 1,
       "roles": ["builder", "scout", "verifier"],
@@ -103,6 +113,11 @@
       "tier": 1,
       "roles": ["builder", "surgeon"],
       "notes": "Cheap high-volume worker from the OpenCode Go pool; best for wide parallel builder fan-out."
+    },
+    "opencode-go/glm-5.3-flash": {
+      "tier": 1,
+      "roles": ["builder", "surgeon"],
+      "notes": "OpenCode V2 provider ID for GLM 5.3 Flash via the OpenCode Go worker pool."
     },
     "anthropic/claude-haiku-5-5": {
       "tier": 1,
