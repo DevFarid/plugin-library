@@ -1,0 +1,48 @@
+{
+  "profile_id": "carbon-deepseek",
+  "description": "Google Gemini 4 Carbon Orchestrator + OpenCode Go DeepSeek V4.1 Flash Subagents",
+  "topology": {
+    "name": "Macro-Context Lead + Parallel Builders",
+    "max_parallel_subagents": 12,
+    "verification_gate": [
+      "verifier",
+      "auditor"
+    ],
+    "agent_steps": {
+      "builder": 25,
+      "researcher": 25,
+      "scout": 25
+    },
+    "directive": "Use Gemini 4 Carbon as the macro-context orchestrator, spec compiler, and shared-contract owner. Batch OpenCode Go DeepSeek V4.1 Flash subagents on independent recon, implementation, PR review, and verification slices once contracts are locked."
+  },
+  "agent_models": {
+    "hivemind-architect": "google/gemini-4-carbon",
+    "spec-architect": "google/gemini-4-carbon",
+    "auditor": "google/gemini-4-carbon",
+    "oracle": "openai/gpt-6-astra",
+    "builder": "opencode-go/deepseek-v4.1-flash",
+    "swarm-agent-updater": "opencode-go/deepseek-v4.1-flash",
+    "researcher": "opencode-go/deepseek-v4.1-flash",
+    "scout": "opencode-go/deepseek-v4.1-flash",
+    "surgeon": "opencode-go/deepseek-v4.1-flash",
+    "verifier": "opencode-go/deepseek-v4.1-flash",
+    "pr-reviewer": "opencode-go/deepseek-v4.1-flash"
+  },
+  "opencode_config": {
+    "$schema": "https://opencode.ai/config.json",
+    "plugins": [],
+    "model": "google/gemini-4-carbon",
+    "small_model": "opencode-go/deepseek-v4.1-flash",
+    "agent": {
+      "plan": {
+        "model": "google/gemini-4-carbon"
+      },
+      "build": {
+        "model": "google/gemini-4-carbon"
+      },
+      "explore": {
+        "model": "opencode-go/deepseek-v4.1-flash"
+      }
+    }
+  }
+}

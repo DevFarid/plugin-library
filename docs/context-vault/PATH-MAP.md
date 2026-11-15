@@ -16,9 +16,9 @@ Wave 0 (`slice-recon-contracts`) inspected `DevRishii/plugin-library` on default
 | `brainstorm_command` | `.opencode/commands/brainstorm.md` | `packs/hivemind/opencode/commands/brainstorm.md` |
 | `swarm_command` | `.opencode/commands/swarm.md` | `packs/hivemind/opencode/commands/swarm.md` |
 | `spec_architect_agent` | `.opencode/agents/spec-architect.md` | `packs/hivemind/opencode/agents/spec-architect.md` |
-| `agent_definitions` | `.opencode/agents/*.md` | `packs/hivemind/opencode/agents/{auditor,builder,hivemind-architect,oracle,researcher,scout,spec-architect,surgeon,verifier}.md` |
-| `profile_configs` | `profiles/*.json` | `packs/hivemind/profiles/{argon-deepseek,chatgpt-deepseek,claude-hybrid,claude-native,opencode-go-max}.json` |
-| `stack_configs` | `stacks/*.json` | `packs/hivemind/opencode/commands/stack/{argon-deepseek,chatgpt-deepseek,claude-hybrid,claude-native,opencode-go-max}.md` |
+| `agent_definitions` | `.opencode/agents/*.md` | `packs/hivemind/opencode/agents/{auditor,builder,hivemind-architect,oracle,pr-reviewer,researcher,scout,spec-architect,surgeon,swarm-agent-updater,verifier}.md` |
+| `profile_configs` | `profiles/*.json` | `packs/hivemind/profiles/{argon-deepseek,carbon-deepseek,chatgpt-deepseek,claude-hybrid,claude-native,opencode-go-max}.json` |
+| `stack_configs` | `stacks/*.json` | `packs/hivemind/opencode/commands/stack/{argon-deepseek,carbon-deepseek,chatgpt-deepseek,claude-hybrid,claude-native,opencode-go-max}.md` |
 | `hive_switch_entry` | `scripts/hive-switch.mjs` | `packs/hivemind/hive-switch.ps1` (Windows) + `packs/hivemind/bin/hive-switch` (POSIX) |
 | `root_agents` | `AGENTS.md` | `packs/hivemind/opencode/AGENTS.md` |
 | `package_json` | `package.json` | `package.json` |

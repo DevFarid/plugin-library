@@ -37,6 +37,7 @@ const CLI_PATH = join(REPO_ROOT, 'scripts', 'hive', 'model-tier.mjs');
 const PACK_ROOT = join(REPO_ROOT, 'packs', 'hivemind');
 const REAL_PROFILES = [
   'argon-deepseek',
+  'carbon-deepseek',
   'chatgpt-deepseek',
   'claude-hybrid',
   'claude-native',
@@ -97,7 +98,7 @@ function verifyFixture(name) {
   return runCli(['verify', '--strict', '--json', '--root', fixture(name)]);
 }
 
-test('registry defines four tiers and all five profiles resolve an architect above the builder', () => {
+test('registry defines four tiers and every real profile resolves an architect above the builder', () => {
   const registry = loadModelTiers({ root: REPO_ROOT });
   assert.deepEqual(Object.keys(registry.tiers), ['1', '2', '3', '4']);
   assert.equal(registry.tiers[1], 'cheap');
@@ -198,10 +199,13 @@ test('profile_overrides that reference an unknown model fail at registry load', 
   assert.equal(parsed.data.model, 'test/ghost');
 });
 
-test('repository default layout verifies all five profiles strictly', () => {
+test('repository default layout verifies every real profile strictly', () => {
+  // verifyModelTiers pairs sorted directory scans with REAL_PROFILES, so keep
+  // the expected roster itself sorted as new profiles are added.
+  assert.deepEqual(REAL_PROFILES, REAL_PROFILES.slice().sort(), 'REAL_PROFILES must stay sorted');
   const data = parseData(runCli(['verify', '--strict', '--json']));
   assert.equal(data.ok, true);
-  assert.equal(data.profile_count, 5);
+  assert.equal(data.profile_count, REAL_PROFILES.length);
   assert.deepEqual(data.violations, []);
   assert.deepEqual(
     data.profiles.map((profile) => profile.profile_id),

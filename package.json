@@ -8,11 +8,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node scripts/test-all.mjs && node --test tests/hive/*.test.mjs && npm run test:obsidian",
+    "test": "node scripts/test-all.mjs && node --test tests/hive/*.test.mjs && npm run test:pack",
     "test:obsidian": "node --test packs/hivemind/tests/obsidian-*.test.mjs",
+    "test:pack": "node --test packs/hivemind/tests/*.test.mjs",
     "test:hive": "node --test tests/hive/*.test.mjs",
     "verify": "node scripts/verify.mjs",
-    "check": "node scripts/verify.mjs && node scripts/test-all.mjs && node --test tests/hive/*.test.mjs && npm run test:obsidian",
+    "check": "node scripts/verify.mjs && node scripts/test-all.mjs && node --test tests/hive/*.test.mjs && npm run test:pack",
     "link": "node scripts/link-profile.mjs",
     "link:dry": "node scripts/link-profile.mjs --dry-run",
     "doctor": "node plugins/dsh-doctor/bin/dsh-doctor.mjs",

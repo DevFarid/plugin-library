@@ -10,6 +10,7 @@ no terminal, no restart.
 /stack/claude-hybrid
 /stack/claude-native
 /stack/argon-deepseek
+/stack/carbon-deepseek
 /stack/opencode-go-max
 /swarm <task>               → adaptive DAG swarm
 /brainstorm <dump>          → compile the dump to .opencode/SPEC.md
@@ -61,11 +62,13 @@ commands). After that, switching never needs a restart.
 | `/stack/claude-hybrid` | Autonomous Feature Pods (4) | Claude Opus 5.5 | Sonnet 5.5 + DeepSeek Flash | Hard refactors needing strong architecture and surgical edits. |
 | `/stack/claude-native` | Autonomous Feature Pods (4) | Claude Opus 5.5 | Sonnet 5.5 + Haiku 5.5 | Pure Anthropic; no DeepSeek key needed. |
 | `/stack/argon-deepseek` | Macro-Context Lead + Parallel Builders (5) | Gemini 4 Argon | DeepSeek Flash | Long runs without burning ChatGPT/Claude quota. |
+| `/stack/carbon-deepseek` | Macro-Context Lead + Parallel Builders (12) | Gemini 4 Carbon | DeepSeek V4.1 Flash (OpenCode Go) | Widest parallel waves; Gemini 4 Carbon owns macro context, specs, and contracts while 12 DeepSeek workers run independent slices. |
 | `/stack/opencode-go-max` | Full Ensemble Council (6) | GPT-6.1 Sol | GLM-5.3-Flash + DeepSeek Flash | High-volume parallel packet work. |
 
-Each stack also repoints the ten Hivemind agents (`hivemind-architect`,
+Each stack also repoints the eleven Hivemind agents (`hivemind-architect`,
 `builder`, `researcher`, `scout`, `spec-architect`, `surgeon`, `verifier`,
-`auditor`, `oracle`, `pr-reviewer`) and applies its agent step budgets.
+`auditor`, `oracle`, `pr-reviewer`, `swarm-agent-updater`) and applies its agent
+step budgets.
 
 ## Commands
 
@@ -112,6 +115,12 @@ It also regenerates the `ACTIVE STACK TOPOLOGY` block in `AGENTS.md` — topolog
 name, `MAX_PARALLEL_SUBAGENTS`, verification gate, step budgets, and the stack
 directive — and mirrors agents/commands to `~/.config/hivemind/opencode/`.
 
+`hive-switch` preserves user-managed OpenCode v2 `opencode.json` agent
+permissions and keeps the `@pr-reviewer` subagent available across all
+profiles: only the profile-owned model and step settings are rewritten, and
+`hivemind-architect` always retains allow rules for `pr-reviewer` and
+`swarm-agent-updater`.
+
 OpenCode watches its config directory and **reloads automatically**, so the
 running Desktop app picks up a switch within a second or two — no restart, no
 IPC. The `/stack/*` commands trigger that switch through a command *shell block*,
@@ -135,7 +144,7 @@ OpenCode resolves from the environment at runtime.
 ## What gets installed
 
 ```
-~/.config/hivemind/profiles/*.json          5 stack definitions
+~/.config/hivemind/profiles/*.json          6 stack definitions
 ~/.config/hivemind/base-opencode.json       shared provider / model config
 ~/.config/hivemind/hive-switch[.ps1]        switcher implementation
 ~/.config/hivemind/opencode/                mirror of agents, commands, AGENTS.md

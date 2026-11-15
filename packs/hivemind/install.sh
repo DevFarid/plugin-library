@@ -21,6 +21,11 @@
 #   ~/.config/hivemind/vault-kit/
 #   ~/.config/hivemind/obsidian/*.mjs (managed framework engine)
 #   ~/.config/hivemind/bin/obsidian.mjs (CLI)
+#   ~/.config/hivemind/bin/hive-switch.cjs (shared switcher backend)
+#   ~/.config/hivemind/opencode/swarm-agents.json
+#   ~/.config/hivemind/opencode/hivemind-wave-limit.mjs
+#   ~/.config/hivemind/skills/hivemind-obsidian/SKILL.md
+#   ~/.config/hivemind/skills/pr-review/ (SKILL.md, lenses/, engine/)
 #   ~/.config/opencode/{AGENTS.md,agents/,commands/,skills/}
 #   ~/.config/opencode/skills/token-discipline/, skills/pr-review/ (incl. lenses/)
 #   ~/.config/opencode/skills/hivemind-obsidian/SKILL.md
@@ -94,13 +99,14 @@ install_dir_files() { # src_dir dest_dir keep_existing
 
 # Engine lives with the installed skill so the command never depends on a repo
 # checkout: ~/.config/opencode/skills/pr-review/engine/{bin,src}.
-install_pr_review_engine() { # keep_existing
+install_pr_review_engine() { # keep_existing [skill_dir]
   local keep="${1:-0}"
+  local skill_dir="${2:-$OC_DIR/skills/pr-review}"
   local engine_src="$ROOT/../../plugins/pr-review"
   if [ ! -d "$engine_src" ]; then
     warn "pr-review engine source not found: $engine_src"; return 0
   fi
-  local engine_dst="$OC_DIR/skills/pr-review/engine"
+  local engine_dst="$skill_dir/engine"
   install_dir_files "$engine_src/bin" "$engine_dst/bin" "$keep"
   install_dir_files "$engine_src/src" "$engine_dst/src" "$keep"
   install_file "$engine_src/package.json" "$engine_dst/package.json" "$keep"
@@ -145,6 +151,56 @@ install_pr_review_assets() { # keep_existing
   install_pr_review_engine "$keep"
 }
 
+# Canonical switcher backend + templates live under HM_HOME so hive-switch.cjs
+# can restore missing agents/plugins/skills without a repo checkout.
+install_hive_switch_templates() {
+  mkdir -p "$HM_HOME/bin" "$HM_HOME/opencode"
+  if [ -f "$ROOT/bin/hive-switch.cjs" ]; then
+    install_file "$ROOT/bin/hive-switch.cjs" "$HM_HOME/bin/hive-switch.cjs" 0
+  else
+    warn "missing $ROOT/bin/hive-switch.cjs; hive-switch will fail until the backend is installed"
+  fi
+  if [ -f "$ROOT/opencode/swarm-agents.json" ]; then
+    install_file "$ROOT/opencode/swarm-agents.json" "$HM_HOME/opencode/swarm-agents.json" 0
+  else
+    warn "missing $ROOT/opencode/swarm-agents.json; the switcher will fall back to built-in templates"
+  fi
+  if [ -f "$ROOT/opencode/hivemind-wave-limit.mjs" ]; then
+    install_file "$ROOT/opencode/hivemind-wave-limit.mjs" "$HM_HOME/opencode/hivemind-wave-limit.mjs" 0
+  else
+    warn "missing $ROOT/opencode/hivemind-wave-limit.mjs; wave limits will rely on the live plugin only"
+  fi
+}
+
+stage_hivemind_obsidian_skill() {
+  local src="$ROOT/opencode/skills/hivemind-obsidian/SKILL.md"
+  if [ ! -f "$src" ]; then
+    warn "missing $src; the switcher cannot restore the hivemind-obsidian skill"
+    return 0
+  fi
+  mkdir -p "$HM_HOME/skills/hivemind-obsidian"
+  install_file "$src" "$HM_HOME/skills/hivemind-obsidian/SKILL.md" 0
+}
+
+stage_pr_review_skill() {
+  local src="$ROOT/opencode/skills/pr-review"
+  if [ ! -d "$src" ]; then
+    warn "missing $src; the switcher cannot restore the pr-review skill"
+    return 0
+  fi
+  mkdir -p "$HM_HOME/skills/pr-review"
+  install_file "$src/SKILL.md" "$HM_HOME/skills/pr-review/SKILL.md" 0
+  local f
+  if [ -d "$src/lenses" ]; then
+    mkdir -p "$HM_HOME/skills/pr-review/lenses"
+    for f in "$src"/lenses/*.md; do
+      [ -f "$f" ] || continue
+      install_file "$f" "$HM_HOME/skills/pr-review/lenses/$(basename "$f")" 0
+    done
+  fi
+  install_pr_review_engine 0 "$HM_HOME/skills/pr-review"
+}
+
 echo
 echo "=================================================================="
 echo "  HIVEMIND STACK SWITCHER -> OpenCode v2 (macOS / Linux / WSL)"
@@ -163,6 +219,11 @@ if [ "$PR_REVIEW_ONLY" = "1" ]; then
   echo
   echo "Focused reinstall -> PR-review assets only"
   install_pr_review_assets 0
+  # Refresh only the staged pr-review skill/engine; obsidian and unrelated
+  # skill assets stay exactly as they are.
+  if [ -d "$HM_HOME" ]; then
+    stage_pr_review_skill
+  fi
   echo
   echo "Harness registration"
   register_harness
@@ -261,6 +322,12 @@ install_file "$ROOT/bin/hive-switch" "$BIN_DIR/hive-switch" 0
 chmod +x "$BIN_DIR/hive-switch"
 install_file "$ROOT/bin/hive-switch" "$HM_HOME/hive-switch" 0
 chmod +x "$HM_HOME/hive-switch"
+
+echo
+echo "Switcher backend + staged templates -> $HM_HOME"
+install_hive_switch_templates
+stage_hivemind_obsidian_skill
+stage_pr_review_skill
 
 # --- point the /stack commands at this machine's switcher ---------------
 CMD="$BIN_DIR/hive-switch"

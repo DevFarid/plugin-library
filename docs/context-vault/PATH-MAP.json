@@ -12,14 +12,17 @@
       "packs/hivemind/opencode/agents/builder.md",
       "packs/hivemind/opencode/agents/hivemind-architect.md",
       "packs/hivemind/opencode/agents/oracle.md",
+      "packs/hivemind/opencode/agents/pr-reviewer.md",
       "packs/hivemind/opencode/agents/researcher.md",
       "packs/hivemind/opencode/agents/scout.md",
       "packs/hivemind/opencode/agents/spec-architect.md",
       "packs/hivemind/opencode/agents/surgeon.md",
+      "packs/hivemind/opencode/agents/swarm-agent-updater.md",
       "packs/hivemind/opencode/agents/verifier.md"
     ],
     "profile_configs": [
       "packs/hivemind/profiles/argon-deepseek.json",
+      "packs/hivemind/profiles/carbon-deepseek.json",
       "packs/hivemind/profiles/chatgpt-deepseek.json",
       "packs/hivemind/profiles/claude-hybrid.json",
       "packs/hivemind/profiles/claude-native.json",
@@ -27,6 +30,7 @@
     ],
     "stack_configs": [
       "packs/hivemind/opencode/commands/stack/argon-deepseek.md",
+      "packs/hivemind/opencode/commands/stack/carbon-deepseek.md",
       "packs/hivemind/opencode/commands/stack/chatgpt-deepseek.md",
       "packs/hivemind/opencode/commands/stack/claude-hybrid.md",
       "packs/hivemind/opencode/commands/stack/claude-native.md",
